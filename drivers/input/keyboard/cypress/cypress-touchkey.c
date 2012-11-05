@@ -209,6 +209,10 @@ static u8 search_sensitivity;
 static int touchkey_enable;
 static bool touchkey_probe = true;
 
+#ifdef CONFIG_TWEAK_REPLACE_BACK_MENU
+static int replace_back_menu = 0;
+#endif
+
 static const struct i2c_device_id sec_touchkey_id[] = {
 	{"sec_touchkey", 0},
 	{}
@@ -836,6 +840,17 @@ static irqreturn_t touchkey_interrupt(int irq, void *dev_id)
 	if (get_tsp_status() && pressed)
 		printk(KERN_DEBUG "[TouchKey] touchkey pressed but don't send event because touch is pressed.\n");
 	else {
+#ifdef CONFIG_TWEAK_REPLACE_BACK_MENU
+		if (replace_back_menu) {
+			if (touchkey_keycode[keycode_type] == KEY_BACK) {
+				input_report_key(tkey_i2c->input_dev, KEY_MENU, pressed);
+			} else if (touchkey_keycode[keycode_type] == KEY_MENU) {
+				input_report_key(tkey_i2c->input_dev, KEY_BACK, pressed);
+			} else {
+				input_report_key(tkey_i2c->input_dev, touchkey_keycode[keycode_type], pressed);
+			}
+		} else
+#endif
 		input_report_key(tkey_i2c->input_dev,
 				 touchkey_keycode[keycode_type], pressed);
 		input_sync(tkey_i2c->input_dev);
@@ -2064,6 +2079,22 @@ static ssize_t touchkey_bln_control(struct device *dev,
 }
 #endif
 
+#ifdef CONFIG_TWEAK_REPLACE_BACK_MENU
+static ssize_t touchkey_replace_back_menu_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", replace_back_menu);
+}
+
+static ssize_t touchkey_replace_back_menu_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	sscanf(buf, "%d", &replace_back_menu);
+	return size;
+}
+#endif
+
+
 static DEVICE_ATTR(recommended_version, S_IRUGO | S_IWUSR | S_IWGRP,
 		   touch_version_read, touch_version_write);
 static DEVICE_ATTR(updated_version, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -2096,6 +2127,11 @@ static DEVICE_ATTR(touchkey_brightness, S_IRUGO | S_IWUSR | S_IWGRP,
 #endif
 #ifdef CONFIG_GENERIC_BLN
 static DEVICE_ATTR(touchkey_bln_control, S_IWUGO, NULL, touchkey_bln_control);
+#endif
+#ifdef CONFIG_TWEAK_REPLACE_BACK_MENU
+static DEVICE_ATTR(touchkey_replace_back_menu, 0666,
+				touchkey_replace_back_menu_show,
+				touchkey_replace_back_menu_store);
 #endif
 
 #if defined(CONFIG_TARGET_LOCALE_NAATT)
@@ -2139,6 +2175,9 @@ static struct attribute *touchkey_attributes[] = {
 #endif
 #ifdef CONFIG_GENERIC_BLN
 	&dev_attr_touchkey_bln_control.attr,
+#endif
+#ifdef CONFIG_TWEAK_REPLACE_BACK_MENU
+	&dev_attr_touchkey_replace_back_menu.attr,
 #endif
 #if defined(CONFIG_TARGET_LOCALE_NAATT)
 	&dev_attr_touchkey_autocal_start.attr,

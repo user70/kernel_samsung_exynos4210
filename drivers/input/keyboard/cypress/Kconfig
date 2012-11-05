@@ -15,3 +15,7 @@ config CM_BLN
        help
          Say Y here to enable the backlight notification
          for android led-notification (modified liblight needed)
+
+config TWEAK_REPLACE_BACK_MENU
+	bool "Keycode replace back / menu"
+	default y
